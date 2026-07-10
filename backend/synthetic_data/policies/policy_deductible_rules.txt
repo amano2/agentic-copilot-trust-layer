@@ -1,0 +1,16 @@
+POLICY DOCUMENT: DEDUCTIBLE APPLICATION AND WAIVER CLAUSES (SEC-107)
+Effective Date: January 1, 2025
+Applicability: All Personal Property and Auto Policies
+
+1. APPLICATION OF DEDUCTIBLE
+The Company will pay only for the portion of the covered loss that exceeds the deductible amount shown on the policy Declarations Page. The deductible applies separately to each occurrence or loss.
+
+2. DEDUCTIBLE WAIVER CONDITIONS (AUTO ONLY)
+For auto collision claims, the deductible may be waived if and only if:
+- The collision was 100% the fault of another identified party.
+- The third-party driver was insured at the time of the accident.
+- A valid police report clearly identifies the third party as the sole at-fault driver.
+- The third-party insurance provider acknowledges liability.
+
+3. RETAINED RESPONSIBILITY
+Under no other circumstances, including vandalism, theft, or hit-and-run accidents where the other driver cannot be identified, will the deductible be waived.

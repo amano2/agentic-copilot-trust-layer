@@ -1,0 +1,74 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+@theme {
+  --color-brand-dark: #0b0f19;
+  --color-brand-card: rgba(17, 24, 39, 0.7);
+  --color-brand-border: rgba(255, 255, 255, 0.08);
+  --color-brand-accent: #8b5cf6;
+  --color-brand-accent-hover: #7c3aed;
+  --color-brand-text-muted: #9ca3af;
+  --color-brand-success: #10b981;
+  --color-brand-warning: #f59e0b;
+  --color-brand-danger: #ef4444;
+  --shadow-glow: 0 0 15px rgba(139, 92, 246, 0.3);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+body {
+  @apply bg-brand-dark text-gray-100 antialiased selection:bg-brand-accent selection:text-white;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Custom Liquid-Glass Utilities */
+.glass-panel {
+  background: rgba(13, 20, 38, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+}
+
+.glass-panel-hover {
+  @apply transition-all duration-300 ease-out hover:border-brand-accent/30 hover:shadow-glow;
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  @apply text-white placeholder-gray-500 rounded-lg px-4 py-2 focus:outline-none focus:border-brand-accent/50 focus:ring-1 focus:ring-brand-accent/30 transition-all;
+}
+
+.glass-button-primary {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  @apply text-white font-medium rounded-lg px-4 py-2 hover:opacity-90 active:scale-[0.98] transition-all cursor-pointer;
+}
+
+.glass-button-secondary {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  @apply text-gray-200 font-medium rounded-lg px-4 py-2 hover:bg-white/10 active:scale-[0.98] transition-all cursor-pointer;
+}
+
+/* Text Gradients */
+.text-glow-violet {
+  text-shadow: 0 0 10px rgba(139, 92, 246, 0.5);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.01);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.3);
+}

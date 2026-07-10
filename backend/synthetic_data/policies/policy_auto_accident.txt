@@ -1,0 +1,17 @@
+POLICY DOCUMENT: AUTO ACCIDENT COVERAGE (SEC-101)
+Effective Date: January 1, 2025
+Applicability: All Personal Automobile Insurance Policies
+
+1. COVERAGE STATEMENT
+The Company will pay for sudden, direct, and accidental loss or damage to the insured vehicle resulting from collision with another vehicle or object, or upset/rollover of the vehicle, subject to the exclusions and deductibles listed herein.
+
+2. REQUIREMENT FOR REPORTING
+- Insureds must report all auto accidents to the police department within 24 hours of the occurrence if the accident involves bodily injury or property damage exceeding $1,000.
+- Failure to obtain a police report for major accidents (estimated damage > $2,500) may result in claims being delayed or subject to strict verification.
+
+3. EXCLUSIONS
+This coverage does not apply to:
+- Any loss occurring while the vehicle is operated by an unlicensed driver or a driver whose license is currently suspended.
+- Any loss occurring while the vehicle is participating in a race, speed contest, or stunt driving.
+- Any damage occurring when the vehicle is driven off-road or in non-designated transit lanes, unless under emergency direction.
+- Wear and tear, mechanical breakdown, electrical failure, or road damage to tires (unless resulting from collision).

@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: copilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d copilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  chroma_db:
+    image: chromadb/chroma:0.5.3
+    container_name: chroma_db
+    ports:
+      - "8000:8000"
+    environment:
+      IS_PERSISTENT: "TRUE"
+      PERSIST_DIRECTORY: "/chroma/data"
+    volumes:
+      - chroma_data:/chroma/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: copilot_backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@postgres_db:5432/copilot"
+      CHROMA_HOST: "chroma_db"
+      CHROMA_PORT: "8000"
+      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY}"
+      PORT: "8000"
+      HOST: "0.0.0.0"
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+      chroma_db:
+        condition: service_healthy
+    volumes:
+      # Mount weights folder to avoid re-downloading model inside container
+      - hf_cache:/root/.cache/huggingface
+
+  frontend:
+    build: ./frontend
+    container_name: copilot_frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  chroma_data:
+  hf_cache:
