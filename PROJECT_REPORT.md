@@ -43,28 +43,39 @@ The system design strictly maps the core components to the BlueVerse brand guide
 
 ## 3. PIPELINE STRESS TESTING REPORT
 
-We ran all 5 seeded claims through the pipeline to verify routing behavior:
+We ran all 6 seeded claims through the upgraded pipeline to verify routing behavior:
 
 | Claim | Claimant | Description / Exclusions Triggered | Trust Score | Decision / Final Status | Routed to Queue? |
 |---|---|---|---|---|---|
 | **CLM-001** | Alice Vance | **Normal Auto Accident**: Rear-ended at a light. | `0.5` | `PENDING_HUMAN_REVIEW` | **YES** |
-| **CLM-002** | Bob Miller | **Gradual Water Leak**: Found leak existing for months (excluded under SEC-102). | `0.5` | `PENDING_HUMAN_REVIEW` | **YES** |
-| **CLM-003** | Charlie Ding | **Rideshare Auto Accident**: Driving Uber (excluded under SEC-105). | `0.5` | `PENDING_HUMAN_REVIEW` | **YES** |
+| **CLM-002** | Bob Miller | **Gradual Water Leak**: Found leak existing for months (excluded under SEC-102). | `0.0` | `PENDING_HUMAN_REVIEW` (Challenger Alert) | **YES** |
+| **CLM-003** | Charlie Ding | **Rideshare Auto Accident**: Driving Uber (excluded under SEC-105). | `0.0` | `PENDING_HUMAN_REVIEW` (Challenger Override) | **YES** |
 | **CLM-004** | Diana Prince | **Late Property Fire**: Hospitalized for smoke inhalation (waiver under SEC-106). | `0.5` | `PENDING_HUMAN_REVIEW` | **YES** |
-| **CLM-005** | Evan Wright | **Theft without Police Report**: Laptop stolen, did not report (violates SEC-103). | `0.0` | `PENDING_HUMAN_REVIEW` | **YES** (Consensus Disagreement) |
+| **CLM-005** | Evan Wright | **Theft without Police Report**: Laptop stolen, did not report (violates SEC-103). | `0.0` | `PENDING_HUMAN_REVIEW` (Consensus Disagreement) | **YES** |
+| **CLM-006** | Frank Miller | **Missing Loss Amount**: Claim filed with `$0.0` loss amount. | `0.0` | `AWAITING_DOCUMENT` (Loopback Triggered) | **NO** (Suspended) |
 
-### Key Stress Testing Takeaway
-For **CLM-005 (Theft without Police Report)**, the system demonstrated the power of the **RightAction** safeguard:
-- **Pass 1 (Temp 0.1)** concluded: `PENDING_HUMAN_REVIEW` (Medium Confidence).
-- **Pass 2 (Temp 0.7)** concluded: `REJECTED` (High Confidence, citing the strict 24h police report mandate).
-- Because the decisions clashed, the consensus engine reduced the Trust Score to `0.0` and correctly sent it to the manager queue for final adjudication.
+### Key Stress Testing Takeaways
+1. **Challenger Audit Override**: For **CLM-003 (Charlie Ding)**, the primary reasoning passes were audited by the compliance Challenger Node. It detected that the claimant was actively online on the Uber rideshare app, which violates the commercial exclusion rider. The Challenger disagreed with the reasoning and overrode the decision to `PENDING_HUMAN_REVIEW` with `0.0` confidence, protecting the system from compliance slippage.
+2. **Conversational Loopbacks**: For **CLM-006 (Frank Miller)**, the claim had an estimated loss amount of `$0.0`. The pre-check `eval_state` node immediately flagged this missing data and routed it to `loopback_request`, transitioning the DB claim status to `AWAITING_DOCUMENT` and suspending the graph run without cluttering the human reviewer queue.
 
 ---
 
-## 4. DOCKER-COMPOSE WORKSPACE CONFIGURATION
+## 4. PRODUCTION-GRADE ARCHITECTURAL UPGRADES
+
+We implemented 5 production-grade upgrades to ensure scalability, speed, and trust:
+- **Trust & Compliance Challenger**: Integrated a LangGraph `challenger_node` compliance auditor comparing the primary reasoning outputs against policy exclusions, overriding confidence to zero on conflicts.
+- **Hybrid Dense-Sparse Search**: Merged vector persistent queries with tf-idf based keyword search for key policy terms (e.g. `Uber`, `rideshare`, `commercial`), and ranked the results using a local `cross-encoder/ms-marco-MiniLM-L-6-v2` reranker.
+- **Parallel Async Execution**: Refactored graph node execution to `async def` and wrapped blocking SQL and vector operations in threadpools. The retrievers execute concurrently, cutting pipeline latency.
+- **WebSocket Trace Streaming**: Set up a FastAPI `/api/ws` WebSocket manager to broadcast execution node transitions live as they complete in the LangGraph loop.
+- **Progress HUD HUD & Contradiction Diff**: React frontend connects to the WebSocket to show a glassmorphic timeline overlay HUD of the running pipeline nodes. Opening a case displays a side-by-side highlighter that highlights matching keywords in the claimant's statement and the policy text.
+
+---
+
+## 5. DOCKER-COMPOSE WORKSPACE CONFIGURATION
 
 The full multi-container setup is coordinated in [docker-compose.yml](file:///c:/Users/KIIT/OneDrive/Desktop/AsignProj1/docker-compose.yml):
 1. **`postgres_db`**: Mounts `postgres_data` volume and performs healthchecks.
 2. **`chroma_db`**: Spins up the server at port `8000`.
-3. **`backend`**: Builds backend container, linking to db/chroma services and passing down the OpenRouter API Key. Mounts HF cache volume locally.
-4. **`frontend`**: Builds node container, running Vite on port `5173`.
+3. **`backend`**: Builds backend container, linking to db/chroma services, mounting the HuggingFace local models cache directory, and exposing endpoints on port `8000`.
+4. **`frontend`**: Builds node container, running Vite server on port `5173`.
+
