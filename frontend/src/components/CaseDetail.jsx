@@ -138,41 +138,50 @@ export default function CaseDetail({ review, onAdjudicate, onClose }) {
           </div>
 
           {/* Column 3: Trust Layer - Self Consistency & Sources */}
-          <div className="glass-panel p-5 rounded-2xl flex flex-col h-[60vh] lg:h-auto overflow-hidden">
+          <div className="glass-panel p-5 rounded-2xl col-span-1 lg:col-span-1 flex flex-col h-[60vh] lg:h-auto overflow-hidden">
             <div className="flex border-b border-white/10 mb-4">
               <button
                 onClick={() => setActiveTab('passes')}
-                className={`flex-1 pb-3 text-sm font-medium transition-all border-b-2 cursor-pointer ${
+                className={`flex-1 pb-3 text-xs font-semibold uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
                   activeTab === 'passes' 
                     ? 'text-brand-accent border-brand-accent' 
                     : 'text-brand-textMuted border-transparent hover:text-white'
                 }`}
               >
-                Self-Consistency passes
+                Self-Consistency
               </button>
               <button
                 onClick={() => setActiveTab('sources')}
-                className={`flex-1 pb-3 text-sm font-medium transition-all border-b-2 cursor-pointer ${
+                className={`flex-1 pb-3 text-xs font-semibold uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
                   activeTab === 'sources' 
                     ? 'text-brand-accent border-brand-accent' 
                     : 'text-brand-textMuted border-transparent hover:text-white'
                 }`}
               >
-                Retrieved Policy Sources
+                Policy Sources
+              </button>
+              <button
+                onClick={() => setActiveTab('diff')}
+                className={`flex-1 pb-3 text-xs font-semibold uppercase tracking-wider transition-all border-b-2 cursor-pointer ${
+                  activeTab === 'diff' 
+                    ? 'text-brand-accent border-brand-accent' 
+                    : 'text-brand-textMuted border-transparent hover:text-white'
+                }`}
+              >
+                Contradiction Diff
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-4">
+            <div className="flex-1 overflow-y-auto">
               {activeTab === 'passes' ? (
                 <div className="space-y-4">
-                  <div className="p-3 bg-white/5 border border-white/5 rounded-xl text-xs space-y-2">
+                  <div className="p-3.5 bg-white/5 border border-white/5 rounded-xl text-xs space-y-2 text-left">
                     <span className="font-semibold text-brand-accent">Consensus Summary:</span>
                     <p className="text-gray-300 leading-relaxed">{review.agent_reasoning}</p>
                   </div>
                   
-                  {/* Retrieved Passes */}
                   {review.retrieved_sources && (
-                    <div className="space-y-2">
+                    <div className="space-y-2 text-left">
                       <span className="text-xs font-semibold text-brand-textMuted">Individual Runs Context:</span>
                       <div className="text-[11px] font-mono bg-black/40 p-3 rounded-xl max-h-48 overflow-y-auto space-y-2 text-gray-300">
                         <p className="text-brand-accent font-bold">Consensus Decision Agreement: {Math.round(review.confidence_score * 100)}%</p>
@@ -181,8 +190,8 @@ export default function CaseDetail({ review, onAdjudicate, onClose }) {
                     </div>
                   )}
                 </div>
-              ) : (
-                <div className="space-y-4">
+              ) : activeTab === 'sources' ? (
+                <div className="space-y-4 text-left">
                   {review.retrieved_sources && Array.isArray(review.retrieved_sources) ? (
                     review.retrieved_sources
                       .filter(s => s.type === 'unstructured_policy')
@@ -205,6 +214,59 @@ export default function CaseDetail({ review, onAdjudicate, onClose }) {
                   ) : (
                     <p className="text-xs text-brand-textMuted">No unstructured sources retrieved.</p>
                   )}
+                </div>
+              ) : (
+                <div className="space-y-4 h-full flex flex-col text-left">
+                  <div className="p-3 bg-brand-warning/10 border border-brand-warning/20 text-brand-warning text-xs rounded-xl flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <span className="font-bold">Contradiction Highlighter</span>
+                      <p className="mt-0.5 text-gray-300">Highlighting matching policy exclusions and case descriptors.</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-brand-textMuted uppercase mb-1">Claim Statement Description</span>
+                      <div className="bg-black/30 border border-white/5 rounded-xl p-3 text-xs leading-relaxed text-gray-200">
+                        {(() => {
+                          const text = review.incident_description || "";
+                          const keywords = ["uber", "rideshare", "commercial", "police", "gradual", "leak", "fire", "theft", "deductible", "sec-102", "sec-103", "sec-105", "sec-106"];
+                          const parts = text.split(/(\b)/g);
+                          return parts.map((part, idx) => {
+                            const isKeyword = keywords.includes(part.toLowerCase());
+                            return isKeyword ? (
+                              <mark key={idx} className="bg-brand-warning/30 text-brand-warning border border-brand-warning/40 rounded px-1 font-bold">
+                                {part}
+                              </mark>
+                            ) : <span key={idx}>{part}</span>;
+                          });
+                        })()}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-brand-textMuted uppercase mb-1">Retrieved Exclusion Reference</span>
+                      <div className="bg-black/30 border border-white/5 rounded-xl p-3 text-xs leading-relaxed text-gray-200 max-h-48 overflow-y-auto">
+                        {(() => {
+                          const policyDocs = review.retrieved_sources 
+                            ? review.retrieved_sources.filter(s => s.type === 'unstructured_policy')
+                            : [];
+                          const text = policyDocs.length > 0 ? policyDocs[0].content : "No matching policy text found.";
+                          const keywords = ["uber", "rideshare", "commercial", "police", "gradual", "leak", "fire", "theft", "deductible", "sec-102", "sec-103", "sec-105", "sec-106"];
+                          const parts = text.split(/(\b)/g);
+                          return parts.map((part, idx) => {
+                            const isKeyword = keywords.includes(part.toLowerCase());
+                            return isKeyword ? (
+                              <mark key={idx} className="bg-brand-warning/30 text-brand-warning border border-brand-warning/40 rounded px-1 font-bold">
+                                {part}
+                              </mark>
+                            ) : <span key={idx}>{part}</span>;
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

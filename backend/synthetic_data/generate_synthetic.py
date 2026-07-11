@@ -23,10 +23,10 @@ def seed_database():
     
     db = SessionLocal()
     try:
-        # Check if database is already seeded
-        if db.query(Claim).count() > 0:
-            print("Claims table already contains records. Skipping seed.")
-        else:
+        # Clear existing claims to ensure fresh seed and avoid duplicates
+        db.query(Claim).delete()
+        db.commit()
+        if True:
             claims = [
                 Claim(
                     claim_number="CLM-001",
@@ -91,6 +91,19 @@ def seed_database():
                     estimated_loss_amount=1800.00,
                     deductible=250.00,
                     coverage_limit=150000.00,
+                    claim_status="UNDER_REVIEW"
+                ),
+                Claim(
+                    claim_number="CLM-006",
+                    policy_number="POL-AUTO-889",
+                    claimant_name="Frank Miller",
+                    incident_date=days_ago(1),
+                    filing_date=days_ago(0),
+                    incident_type="Auto Accident",
+                    incident_description="I hit a light pole in the supermarket parking lot. No police were involved.",
+                    estimated_loss_amount=0.0,
+                    deductible=500.00,
+                    coverage_limit=25000.00,
                     claim_status="UNDER_REVIEW"
                 )
             ]

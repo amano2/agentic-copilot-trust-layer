@@ -27,7 +27,8 @@ def main():
     print(f"\nProcessing Claim ID: {claim_id}...")
     
     try:
-        final_state = run_agentic_pipeline(claim_id)
+        import asyncio
+        final_state = asyncio.run(run_agentic_pipeline(claim_id))
         
         print("\n" + "="*50)
         print("AGENT EXECUTION TRACE LOG (Node Timeline):")

@@ -1,7 +1,7 @@
 import os
 import sys
 import datetime
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -40,6 +40,41 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+        print(f"[WebSocket] Connected. Active connections: {len(self.active_connections)}")
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+        print(f"[WebSocket] Disconnected. Active connections: {len(self.active_connections)}")
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                print(f"[WebSocket] Error broadcasting: {e}")
+
+manager = ConnectionManager()
+
+@app.websocket("/api/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # Maintain connection alive and listen for client closing
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        print(f"[WebSocket] Error: {e}")
+        manager.disconnect(websocket)
 
 # 1. Pydantic Schemas
 class AdjudicationRequest(BaseModel):
@@ -112,16 +147,32 @@ def get_review_queue(db: Session = Depends(get_db)):
     return queue_list
 
 @app.post("/api/claims/process/{claim_id}")
-def process_claim(claim_id: int, db: Session = Depends(get_db)):
+async def process_claim(claim_id: int, db: Session = Depends(get_db)):
     """
     Triggers the supervisor-driven LangGraph pipeline for a specific claim.
+    Streams progress live over WebSockets.
     """
     claim = db.query(Claim).filter(Claim.id == claim_id).first()
     if not claim:
         raise HTTPException(status_code=404, detail="Claim not found")
         
+    async def on_node_complete(node_name: str, state: dict):
+        print(f"[WebSocket Broadcast] Streamed Node Complete: {node_name}")
+        await manager.broadcast({
+            "claim_id": claim_id,
+            "node_name": node_name,
+            "status": "completed",
+            "state": {
+                "decision": state.get("decision"),
+                "confidence_score": state.get("confidence_score"),
+                "missing_fields": state.get("missing_fields"),
+                "errors": state.get("errors")
+            }
+        })
+        
     try:
-        final_state = run_agentic_pipeline(claim_id)
+        # Run async pipeline
+        final_state = await run_agentic_pipeline(claim_id, on_node_complete=on_node_complete)
         
         return {
             "claim_id": final_state["claim_id"],
@@ -132,6 +183,8 @@ def process_claim(claim_id: int, db: Session = Depends(get_db)):
             "errors": final_state["errors"]
         }
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Pipeline execution failed: {str(e)}")
 
 @app.post("/api/review-queue/{review_id}/adjudicate")

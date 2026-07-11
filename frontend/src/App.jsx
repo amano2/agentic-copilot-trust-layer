@@ -10,6 +10,34 @@ export default function App() {
   const [selectedReview, setSelectedReview] = useState(null);
   const [processingClaimId, setProcessingClaimId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pipelineEvents, setPipelineEvents] = useState([]);
+  const [showPipelineHUD, setShowPipelineHUD] = useState(false);
+  const [currentClaimNumber, setCurrentClaimNumber] = useState('');
+
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8000/api/ws');
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log("[WebSocket Event]:", data);
+      
+      setPipelineEvents((prev) => {
+        const isNewRun = prev.length > 0 && prev[prev.length - 1].claim_id !== data.claim_id;
+        const currentList = isNewRun ? [] : prev;
+        
+        const idx = currentList.findIndex(e => e.node_name === data.node_name);
+        if (idx !== -1) {
+          const copy = [...currentList];
+          copy[idx] = data;
+          return copy;
+        }
+        return [...currentList, data];
+      });
+    };
+    ws.onclose = () => {
+      console.log("[WebSocket] Closed. Attempting reconnect...");
+    };
+    return () => ws.close();
+  }, []);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -39,6 +67,10 @@ export default function App() {
   }, []);
 
   const triggerProcessPipeline = async (claimId) => {
+    const claim = claims.find(c => c.id === claimId);
+    setCurrentClaimNumber(claim ? claim.claim_number : `CLM-${claimId}`);
+    setPipelineEvents([]);
+    setShowPipelineHUD(true);
     setProcessingClaimId(claimId);
     try {
       const res = await fetch(`http://localhost:8000/api/claims/process/${claimId}`, {
@@ -46,10 +78,13 @@ export default function App() {
       });
       if (!res.ok) throw new Error('Pipeline error');
       
-      // Refresh database records
+      // Keep HUD open for 1.5 seconds to let the user see the complete state before closing
+      await new Promise(r => setTimeout(r, 1500));
+      setShowPipelineHUD(false);
       await fetchInitialData();
     } catch (err) {
       console.error(err);
+      setShowPipelineHUD(false);
     } finally {
       setProcessingClaimId(null);
     }
@@ -295,6 +330,89 @@ export default function App() {
           }}
           onClose={() => setSelectedReview(null)}
         />
+      )}
+
+      {/* Floating Liquid-Glass Pipeline Progress HUD */}
+      {showPipelineHUD && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 transition-all duration-300">
+          <div className="glass-panel w-full max-w-lg p-6 rounded-2xl border border-white/10 shadow-glass text-left">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-brand-accent/20 flex items-center justify-center text-brand-accent animate-pulse">
+                  <Cpu className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Foundry Engine Pipeline Trace</h3>
+                  <p className="text-xs text-brand-textMuted font-medium">Live node state stream for {currentClaimNumber}</p>
+                </div>
+              </div>
+              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-brand-accent/20 text-brand-accent border border-brand-accent/30 animate-pulse">
+                PROCESSING
+              </span>
+            </div>
+
+            <div className="space-y-3.5">
+              {[
+                { id: 'intake', label: 'Intake Node', description: 'Load claim structured metadata details' },
+                { id: 'retrieve', label: 'Concurrent Database Retrieval', description: 'Query SQL and Vector DB concurrently' },
+                { id: 'eval_state', label: 'State Pre-Check', description: 'Validate required fields compliance' },
+                { id: 'reasoning', label: 'Consensus Reasoning Node', description: 'Self-Consistency dual-pass logic check' },
+                { id: 'challenger', label: 'Challenger Compliance Node', description: 'Auditor loop verification analysis' },
+                { id: 'decision', label: 'Decision Node', description: 'Finalize status and write DB traces' }
+              ].map((node) => {
+                const event = pipelineEvents.find(e => e.node_name === node.id);
+                const isCompleted = !!event;
+                
+                let statusText = 'Pending...';
+                let statusClass = 'text-gray-500 border-gray-500/20 bg-gray-500/5';
+                
+                if (isCompleted) {
+                  statusText = 'Completed';
+                  statusClass = 'text-brand-success border-brand-success/30 bg-brand-success/10';
+                  if (node.id === 'reasoning' && event.state?.decision === 'PENDING_HUMAN_REVIEW') {
+                    statusText = 'Low Confidence';
+                    statusClass = 'text-brand-warning border-brand-warning/30 bg-brand-warning/10';
+                  }
+                }
+                
+                // Skip display of reasoning/challenger if loopback was triggered
+                const isLoopbackTriggered = pipelineEvents.some(e => e.node_name === 'loopback_request');
+                if (node.id === 'reasoning' && isLoopbackTriggered) {
+                  const loopbackEvent = pipelineEvents.find(e => e.node_name === 'loopback_request');
+                  return (
+                    <div key="loopback_row" className="flex items-center justify-between p-3 rounded-xl bg-brand-danger/10 border border-brand-danger/25 text-left transition-all">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-brand-danger">Loopback Request Suspended</span>
+                        <span className="text-xs text-brand-textMuted">Claim lacks required documents - dispatched alert.</span>
+                      </div>
+                      <span className="text-[10px] font-mono border px-2.5 py-0.5 rounded bg-brand-danger/15 text-brand-danger border-brand-danger/30">
+                        AWAITING_DOCUMENT
+                      </span>
+                    </div>
+                  );
+                }
+                if ((node.id === 'reasoning' || node.id === 'challenger') && isLoopbackTriggered) return null;
+
+                return (
+                  <div key={node.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all duration-300 ${isCompleted ? 'bg-white/5 border-white/10' : 'bg-transparent border-white/5 opacity-55'}`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${isCompleted ? 'bg-brand-success text-white' : 'bg-white/5 text-gray-500'}`}>
+                        {isCompleted ? '✓' : '○'}
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-white">{node.label}</h4>
+                        <p className="text-xs text-brand-textMuted">{node.description}</p>
+                      </div>
+                    </div>
+                    <span className={`text-[10px] font-mono border px-2 py-0.5 rounded ${statusClass}`}>
+                      {statusText}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

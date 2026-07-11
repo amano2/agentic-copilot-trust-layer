@@ -25,7 +25,8 @@ def main():
         print("Expected outcome: AUTO_APPROVED with Confidence 1.0 (No Review Queue entry)")
         print("="*60)
         
-        state_1 = run_agentic_pipeline(1)
+        import asyncio
+        state_1 = asyncio.run(run_agentic_pipeline(1))
         print(f"\nResult CLM-001:")
         print(f" - Decision: {state_1['decision']}")
         print(f" - Confidence: {state_1['confidence_score']}")
@@ -41,7 +42,7 @@ def main():
         print("Expected outcome: PENDING_HUMAN_REVIEW with Confidence < 0.8 (Created Review Queue entry)")
         print("="*60)
         
-        state_2 = run_agentic_pipeline(3)
+        state_2 = asyncio.run(run_agentic_pipeline(3))
         print(f"\nResult CLM-003:")
         print(f" - Decision: {state_2['decision']}")
         print(f" - Confidence: {state_2['confidence_score']}")

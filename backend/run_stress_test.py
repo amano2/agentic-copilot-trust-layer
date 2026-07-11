@@ -30,7 +30,8 @@ def main():
             print(f"Loss amount:      ${c.estimated_loss_amount}")
             print("="*70)
             
-            res = run_agentic_pipeline(c.id)
+            import asyncio
+            res = asyncio.run(run_agentic_pipeline(c.id))
             
             # Check review queue status
             rq = db.query(ReviewQueue).filter(ReviewQueue.claim_id == c.id).first()
